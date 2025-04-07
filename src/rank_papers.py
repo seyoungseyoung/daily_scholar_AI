@@ -15,26 +15,36 @@ class PaperQualityAnalyzer:
             'content_metrics': 0.2    # 내용 관련 지표
         }
     
-    def analyze_paper(self, paper) -> float:
-        score = 0
-        
-        # 저자 관련 점수
-        author_score = self._calculate_author_score(paper)
-        score += author_score * self.quality_indicators['author_metrics']
-        
-        # 논문 특성 점수
-        paper_score = self._calculate_paper_score(paper)
-        score += paper_score * self.quality_indicators['paper_metrics']
-        
-        # 시간 관련 점수
-        time_score = self._calculate_time_score(paper)
-        score += time_score * self.quality_indicators['time_metrics']
-        
-        # 내용 관련 점수
-        content_score = self._calculate_content_score(paper)
-        score += content_score * self.quality_indicators['content_metrics']
-        
-        return score
+    def analyze_paper(self, paper: Dict) -> float:
+        """논문의 품질 점수를 계산합니다."""
+        try:
+            score = 0.0
+            
+            # 제목 분석
+            title = paper.get('title', '')
+            if len(title) > 0:
+                score += 0.2
+            
+            # 저자 수 분석
+            authors = paper.get('authors', [])
+            if len(authors) >= 2:
+                score += 0.2
+            
+            # 카테고리 분석
+            categories = paper.get('categories', [])
+            if len(categories) >= 1:
+                score += 0.2
+            
+            # 초록 분석
+            abstract = paper.get('abstract', '')
+            if len(abstract) > 100:
+                score += 0.4
+            
+            return min(score, 1.0)
+            
+        except Exception as e:
+            print(f"논문 품질 분석 중 오류 발생: {e}")
+            return 0.0
     
     def _calculate_author_score(self, paper) -> float:
         score = 0

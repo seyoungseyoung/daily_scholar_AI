@@ -2,31 +2,44 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
 from datetime import datetime
 from typing import List, Dict, Any
 
 class EmailSender:
     def __init__(self):
+        load_dotenv()  # .env 파일 로드
+        
         self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        self.smtp_username = os.getenv('SMTP_USERNAME')
-        self.smtp_password = os.getenv('SMTP_PASSWORD')
-        self.sender_email = os.getenv('SMTP_USERNAME')
+        self.smtp_port = int(os.getenv('SMTP_PORT', 587))
+        self.sender_email = os.getenv('SENDER_EMAIL')
+        self.sender_password = os.getenv('SENDER_PASSWORD')
+        self.subject_prefix = os.getenv('EMAIL_SUBJECT_PREFIX', '[DailyAI Scholar] ')
         
         # Load recipient list
         self.recipient_list = self._load_recipient_list()
     
     def _load_recipient_list(self) -> List[str]:
         """Load recipient email addresses from config file."""
-        config_dir = "config"
-        email_file = os.path.join(config_dir, "email_list.txt")
+        # 프로젝트 루트 디렉토리 찾기
+        current_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        email_file = os.path.join(current_dir, "config", "email_list.txt")
         
         if not os.path.exists(email_file):
             print(f"Warning: {email_file} not found. No emails will be sent.")
             return []
         
-        with open(email_file, 'r') as f:
-            return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        try:
+            with open(email_file, 'r', encoding='utf-8') as f:
+                return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        except UnicodeDecodeError:
+            # UTF-8로 읽기 실패 시 다른 인코딩 시도
+            try:
+                with open(email_file, 'r', encoding='cp949') as f:
+                    return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            except Exception as e:
+                print(f"Error reading email list: {str(e)}")
+                return []
     
     def _create_html_content(self, papers: List[Dict[str, Any]]) -> str:
         """Create HTML content for the email."""
@@ -54,19 +67,19 @@ class EmailSender:
             <div class="paper">
                 <div class="title">{paper['title']}</div>
                 <div class="tags">
-                    {''.join([f'<span class="tag">{tag}</span>' for tag in paper['tags']])}
+                    {''.join([f'<span class="tag">{tag}</span>' for tag in paper.get('tags', [])])}
                 </div>
                 <div class="summary">
                     <h3>Summary</h3>
-                    {paper['summary']}
+                    {paper.get('summary', '')}
                 </div>
                 <div class="translation">
                     <h3>Korean Translation</h3>
-                    {paper['translation'] if isinstance(paper['translation'], str) else paper['translation'].get('abstract', '')}
+                    {paper.get('translation', '')}
                 </div>
                 <div class="meta">
-                    <p>Publication Date: {paper['submission_date']}</p>
-                    <p><a href="{paper['html_url']}" target="_blank">View Paper</a></p>
+                    <p>Publication Date: {paper.get('submission_date', '')}</p>
+                    <p><a href="{paper.get('html_url', '#')}" target="_blank">View Paper</a></p>
                 </div>
             </div>
             """
@@ -83,13 +96,13 @@ class EmailSender:
             print("No recipients found. Skipping email sending.")
             return False
         
-        if not all([self.smtp_username, self.smtp_password]):
-            print("SMTP credentials not configured. Skipping email sending.")
+        if not all([self.sender_email, self.sender_password]):
+            print("Sender credentials not configured. Skipping email sending.")
             return False
         
         try:
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = f"Daily AI Paper Report - {datetime.now().strftime('%Y-%m-%d')}"
+            msg['Subject'] = f"{self.subject_prefix}Daily AI Paper Report - {datetime.now().strftime('%Y-%m-%d')}"
             msg['From'] = self.sender_email
             msg['To'] = ', '.join(self.recipient_list)
             
@@ -98,7 +111,7 @@ class EmailSender:
             
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
+                server.login(self.sender_email, self.sender_password)
                 server.send_message(msg)
             
             print(f"Report sent successfully to {len(self.recipient_list)} recipients")

@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 from typing import List, Dict, Any
-from src.paper_analyzer import PaperAnalyzer
+from paper_analyzer import PaperAnalyzer
 
 class AnalysisManager:
     def __init__(self):

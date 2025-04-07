@@ -1,8 +1,8 @@
 import json
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, List
 import time
-from src.config import DEEPSEEK_API_KEY, DEEPSEEK_API_URL, ANALYSIS_PROMPTS
+from config import DEEPSEEK_API_KEY, DEEPSEEK_API_URL, ANALYSIS_PROMPTS
 
 class PaperAnalyzer:
     def __init__(self):

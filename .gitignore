@@ -20,30 +20,46 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
+# Environment
+.env
+.venv
 env/
+venv/
 ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.DS_Store
 
 # Project specific
-data/database/
-data/analysis/
-data/daily_top10/
-data/papers/
-data/rankings/
-data/text/
-logs/
-.env
-config/
+data/
+cache/
+*.pkl
+*.csv
+*.json
+*.html
+*.log
+
+# Sensitive files
+config/email_list.txt
+config/*.key
+*.pem
+*.key
+*.cert
+*.crt
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
 
 # OS specific
-.DS_Store
 Thumbs.db
 
 # Additional project specific files

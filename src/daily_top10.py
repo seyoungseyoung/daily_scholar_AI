@@ -10,45 +10,135 @@ from rank_papers import PaperQualityAnalyzer
 from paper_analyzer import PaperAnalyzer
 from analysis_manager import AnalysisManager
 import json
-from src.services.email_sender import EmailSender
+from services.email_sender import EmailSender
+import requests
+import hashlib
+import pickle
 
 # Initialize analyzers
 paper_analyzer = PaperAnalyzer()
 analysis_manager = AnalysisManager()
 
-def get_specific_date_papers(target_date: str) -> List[Dict]:
-    # UTC 기준으로 특정 날짜 계산
-    target_start = datetime.datetime.strptime(target_date, '%Y-%m-%d').replace(tzinfo=pytz.UTC)
-    target_end = target_start + datetime.timedelta(days=1)
+def get_paper_hash(paper: Dict) -> str:
+    """논문의 고유 해시값을 생성합니다."""
+    paper_data = f"{paper['title']}{paper['url']}{paper['published']}"
+    return hashlib.md5(paper_data.encode()).hexdigest()
+
+def load_cached_analysis(paper_hash: str) -> Dict:
+    """캐시된 분석 결과를 로드합니다."""
+    cache_dir = "data/cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f"{paper_hash}.pkl")
     
-    # arXiv 검색 쿼리 생성
-    client = arxiv.Client()
-    search = arxiv.Search(
-        query='cat:cs.AI',
-        max_results=100,
-        sort_by=arxiv.SortCriterion.SubmittedDate,
-        sort_order=arxiv.SortOrder.Descending
-    )
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'rb') as f:
+                return pickle.load(f)
+        except Exception as e:
+            print(f"캐시 로드 중 오류 발생: {e}")
+    return None
+
+def save_cached_analysis(paper_hash: str, analysis_result: Dict):
+    """분석 결과를 캐시에 저장합니다."""
+    cache_dir = "data/cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f"{paper_hash}.pkl")
     
-    # 논문 수집
-    papers = []
     try:
-        for paper in client.results(search):
-            # target_end보다 이후의 논문은 건너뛰기
-            if paper.published >= target_end:
-                continue
-            # target_start보다 이전의 논문은 더 이상 볼 필요 없음
-            if paper.published < target_start:
-                break
-            # target_start와 target_end 사이의 논문만 수집
-            papers.append(paper)
-            time.sleep(0.1)
+        with open(cache_file, 'wb') as f:
+            pickle.dump(analysis_result, f)
+    except Exception as e:
+        print(f"캐시 저장 중 오류 발생: {e}")
+
+def get_specific_date_papers(target_date: str) -> List[Dict]:
+    try:
+        # arxiv API 클라이언트 사용
+        client = arxiv.Client(
+            page_size=100,
+            delay_seconds=3.0,
+            num_retries=3
+        )
+        
+        # 단순한 검색 쿼리 사용 (cs.AI 카테고리만)
+        query = 'cat:cs.AI'
+        
+        print(f"검색 쿼리: {query}")
+        
+        papers = []
+        total_papers = 0
+        max_results = 200  # 최대 200개까지 검색 (3일치면 충분)
+        
+        # 날짜 범위 계산
+        target_start = datetime.datetime.strptime(target_date, '%Y-%m-%d').replace(tzinfo=pytz.UTC)
+        search_start = target_start - datetime.timedelta(days=3)  # 3일 전부터 검색
+        search_end = target_start + datetime.timedelta(days=1)  # 다음 날까지
+        
+        print(f"검색 기간: {search_start.strftime('%Y-%m-%d')} ~ {search_end.strftime('%Y-%m-%d')}")
+        
+        # arxiv API 클라이언트 설정
+        search = arxiv.Search(
+            query=query,
+            max_results=max_results,
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+            sort_order=arxiv.SortOrder.Descending
+        )
+        
+        # 논문 수집
+        try:
+            for paper in client.results(search):
+                try:
+                    # 게시일이 검색 범위를 벗어나면 중단
+                    if paper.published < search_start:
+                        print(f"\n검색 범위를 벗어난 논문 발견: {paper.published}")
+                        break
+                    
+                    total_papers += 1
+                    print(f"\n검색된 논문 ({total_papers}):")
+                    print(f"제목: {paper.title}")
+                    print(f"카테고리: {', '.join(paper.categories)}")
+                    print(f"게시일: {paper.published} (UTC)")
+                    print(f"업데이트일: {paper.updated} (UTC)")
+                    
+                    papers.append(paper)
+                    print("-> 논문 추가")
+                    
+                    # 50개 단위로 진행 상황 출력
+                    if total_papers % 50 == 0:
+                        print(f"\n{total_papers}개 논문 처리 완료")
+                        time.sleep(1)
+                    
+                except Exception as e:
+                    print(f"논문 처리 중 오류 발생: {e}")
+                    continue
+                    
+        except arxiv.UnexpectedEmptyPageError:
+            print(f"\n총 {total_papers}개 논문 검색 완료")
+        
+        print(f"\n총 검색된 논문 수: {total_papers}")
+        
+        if not papers:
+            print("논문이 발견되지 않았습니다.")
+            return []
+        
+        # 대상 날짜의 논문만 필터링
+        filtered_papers = []
+        for paper in papers:
+            if target_start <= paper.published < search_end:
+                filtered_papers.append(paper)
+        
+        if filtered_papers:
+            print(f"대상 기간 내 논문 수: {len(filtered_papers)}")
+            return filtered_papers
+        else:
+            print("대상 기간 내 논문이 없습니다. 최신 논문 20개를 사용합니다.")
+            return papers[:20]  # 최신 논문 20개 반환
+        
     except Exception as e:
         print(f"논문 수집 중 오류 발생: {e}")
-        if not papers:
-            raise
-    
-    return papers
+        print(f"오류 상세 정보: {str(e)}")
+        import traceback
+        print(f"스택 트레이스:\n{traceback.format_exc()}")
+        return []
 
 def save_top10(papers: List[Dict], analyzer: PaperQualityAnalyzer):
     # 논문 품질 점수 계산 및 정렬
@@ -116,10 +206,23 @@ def analyze_and_generate_report(papers: List[Dict], target_date: str):
     analysis_results = []
     for paper in top10_papers:
         print(f"\n논문 분석 시작: {paper['title']}")
-        result = paper_analyzer.analyze_paper(paper)
-        # Add submission_date and html_url to result
-        result['submission_date'] = paper['published']
-        result['html_url'] = paper['url']
+        
+        # 캐시 확인
+        paper_hash = get_paper_hash(paper)
+        cached_result = load_cached_analysis(paper_hash)
+        
+        if cached_result:
+            print("캐시된 분석 결과를 사용합니다.")
+            result = cached_result
+        else:
+            print("새로운 분석을 수행합니다.")
+            result = paper_analyzer.analyze_paper(paper)
+            # Add submission_date and html_url to result
+            result['submission_date'] = paper['published']
+            result['html_url'] = paper['url']
+            # 캐시에 저장
+            save_cached_analysis(paper_hash, result)
+        
         analysis_results.append(result)
         print(f"분석 완료: {paper['title']}")
     
@@ -146,24 +249,35 @@ def analyze_and_generate_report(papers: List[Dict], target_date: str):
 
 def run_daily_top10():
     try:
-        # UTC 기준으로 전날 날짜 계산
+        # UTC 기준으로 현재 날짜에서 하루 전 계산
         utc = pytz.UTC
-        today = datetime.datetime.now(utc)
-        yesterday = today - datetime.timedelta(days=1)
-        target_date = yesterday.strftime('%Y-%m-%d')
+        now = datetime.datetime.now(utc)
+        yesterday = now - datetime.timedelta(days=1)
         
-        print(f"{target_date}의 cs.AI 논문을 가져오는 중...")
-        papers = get_specific_date_papers(target_date)
+        # 날짜를 UTC 자정으로 설정
+        target_date = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+        target_date_str = target_date.strftime('%Y-%m-%d')
+        
+        print(f"현재 시간 (UTC): {now.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"대상 날짜 (UTC): {target_date_str}")
+        print(f"{target_date_str}의 AI 논문을 가져오는 중...")
+        
+        papers = get_specific_date_papers(target_date_str)
         print(f"총 {len(papers)}개의 논문을 가져왔습니다.")
         
+        if not papers:
+            print("경고: 논문이 발견되지 않았습니다. 검색 기간을 확인해주세요.")
+            return
+        
         # 분석 및 보고서 생성
-        analyze_and_generate_report(papers, target_date)
+        analyze_and_generate_report(papers, target_date_str)
     except Exception as e:
         print(f"오류 발생: {e}")
+        print(f"오류 상세 정보: {str(e)}")
 
 def main():
     # 테스트 실행
     run_daily_top10()
 
 if __name__ == "__main__":
-    main() 
+    main()  

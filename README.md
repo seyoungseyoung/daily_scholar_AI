@@ -1,109 +1,70 @@
 # DailyAI Scholar
 
-[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+DailyAI Scholar는 매일 업로드되는 AI 관련 논문을 자동으로 수집, 분석하고 요약하여 이메일로 전송하는 시스템입니다.
 
-An intelligent system for daily analysis and ranking of AI research papers from arXiv.
+## 주요 기능
 
-## 🌟 Features
+- arXiv에서 최신 AI 논문 자동 수집
+- 논문 품질 분석 및 순위 매기기
+- 논문 내용 요약 및 한국어 번역
+- HTML 형식의 보고서 생성
+- 이메일을 통한 자동 배포
 
-- **Automated Paper Collection**: Daily fetching of AI research papers from arXiv
-- **Smart Ranking System**: Quality-based paper ranking using multiple metrics
-- **Comprehensive Analysis**: Detailed paper analysis including:
-  - Quality scoring
-  - Category classification
-  - Key insights extraction
-  - Korean translation
-- **Beautiful Reports**: Generate elegant HTML reports with paper summaries
-- **Database Integration**: Store and manage paper data efficiently
-- **Scheduled Execution**: Automatic daily runs at 3:00 AM KST
+## 설치 방법
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.11 or higher
-- pip (Python package manager)
-
-### Installation
-
-1. Clone the repository:
+1. 저장소 클론:
 ```bash
-git clone https://github.com/Kororu-lab/DailyAI_Scholar.git
-cd DailyAI_Scholar
+git clone https://github.com/seyoungseyoung/daily_scholar_AI.git
+cd daily_scholar_AI
 ```
 
-2. Install dependencies:
+2. 가상 환경 생성 및 활성화:
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+```
+
+3. 필요한 패키지 설치:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+4. 환경 변수 설정:
+- `.env.example` 파일을 복사하여 `.env` 파일 생성
+- 필요한 API 키와 이메일 설정 입력
 
-### Usage
+5. 이메일 수신자 설정:
+- `config/email_list.txt` 파일에 수신자 이메일 주소 추가
 
-#### Manual Execution
+## 사용 방법
 
-1. Run the daily paper collection:
+1. 일일 실행:
 ```bash
 python src/daily_top10.py
 ```
 
-2. Generate paper rankings:
-```bash
-python src/rank_papers.py
-```
+2. 스케줄링 (선택사항):
+- Windows: 작업 스케줄러 설정
+- Linux/Mac: crontab 설정
 
-#### Automated Daily Execution
+## 보안 주의사항
 
-The project includes a scheduler script that runs automatically at 3:00 AM KST:
+- `.env` 파일은 절대 공개 저장소에 푸시하지 마세요
+- API 키와 이메일 비밀번호는 안전하게 보관하세요
+- `email_list.txt` 파일은 권한이 있는 사용자만 접근할 수 있도록 설정하세요
 
-```bash
-# Run immediately
-./run_daily.sh --now
+## 라이선스
 
-# Schedule for next 3:00 AM KST
-./run_daily.sh
-```
+MIT License
 
-The scheduler will:
-- Run immediately if current time is before 3:00 AM KST
-- Schedule for next day if current time is after 3:00 AM KST
-- Automatically run every 24 hours after the initial execution
+## 기여 방법
 
-## 📊 Project Structure
+1. 이슈 생성
+2. 포크 후 브랜치 생성
+3. 변경사항 커밋
+4. 풀 리퀘스트 생성
 
-```
-DailyAI_Scholar/
-├── src/
-│   ├── analysis_manager.py    # Analysis report generation
-│   ├── daily_top10.py        # Daily paper collection
-│   ├── paper_analyzer.py     # Paper analysis logic
-│   ├── rank_papers.py       # Paper ranking system
-│   └── services/            # External service integrations
-├── data/                    # Data storage (gitignored)
-├── requirements.txt         # Project dependencies
-├── run_daily.sh           # Daily scheduler script
-└── README.md               # Project documentation
-```
+## 문의
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- arXiv API for providing access to research papers
-- All contributors and maintainers
-
----
-
-Kororu-Lab 
+문제가 있거나 제안사항이 있다면 이슈를 생성해주세요. 

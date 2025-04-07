@@ -15,11 +15,8 @@ logger = logging.getLogger(__name__)
 
 class ArxivCollector:
     def __init__(self):
-        self.max_papers = 3  # 테스트를 위해 3개로 제한
-        self.target_categories = [
-            'cs.AI', 'cs.CV', 'cs.LG', 'cs.CL', 'cs.NE', 
-            'cs.IR', 'cs.ML', 'cs.RO', 'cs.SE', 'cs.SY'
-        ]
+        self.max_papers = 1000  # 최대 논문 수 증가
+        self.target_categories = ['cs.AI']  # cs.AI만 검색
         self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         self.papers_dir = os.path.join(self.base_dir, 'data', 'papers')
         self.html_dir = os.path.join(self.base_dir, 'data', 'html')
@@ -108,10 +105,15 @@ class ArxivCollector:
         """논문 정보 수집"""
         try:
             # 검색 쿼리 생성
-            query = ' OR '.join([f'cat:{cat}' for cat in self.target_categories])
+            query = 'cat:cs.AI'
             
             # arxiv API 클라이언트 설정
-            client = arxiv.Client()
+            client = arxiv.Client(
+                page_size=100,  # 한 번에 가져올 결과 수
+                delay_seconds=3.0,  # 요청 간 지연 시간
+                num_retries=3  # 실패 시 재시도 횟수
+            )
+            
             search = arxiv.Search(
                 query=query,
                 max_results=self.max_papers,
@@ -120,12 +122,12 @@ class ArxivCollector:
             )
 
             papers = []
-            one_week_ago = datetime.now(pytz.UTC) - timedelta(days=7)
+            one_day_ago = datetime.now(pytz.UTC) - timedelta(days=1)
 
             # 논문 수집
             for result in client.results(search):
-                # 최근 1주일 이내의 논문만 수집
-                if result.published < one_week_ago:
+                # 최근 1일 이내의 논문만 수집
+                if result.published < one_day_ago:
                     continue
 
                 # PDF 다운로드 및 텍스트 추출
@@ -146,19 +148,18 @@ class ArxivCollector:
                     "authors": ', '.join([author.name for author in result.authors]),
                     "abstract": result.summary,
                     "submission_date": result.published,
-                    "categories": result.categories,  # 이미 문자열 리스트로 제공됨
+                    "categories": result.categories,
                     "pdf_url": result.pdf_url,
                     "html_url": result.entry_id,
-                    "source_url": None,  # arXiv API에서는 제공하지 않음
-                    "local_pdf_path": os.path.join('data', 'papers', pdf_filename),
-                    "local_html_path": os.path.join('data', 'html', f"{paper_id}.html") if html_success else None,
-                    "local_text_path": os.path.join('data', 'text', f"{paper_id}.txt")
+                    "pdf_path": pdf_path,
+                    "text_path": text_path,
+                    "html_success": html_success
                 }
                 papers.append(paper_info)
-                time.sleep(1)  # API 부하 방지
+                logger.info(f"논문 수집 완료: {result.title}")
 
             return papers
 
         except Exception as e:
-            logger.error(f"논문 수집 중 오류: {str(e)}")
+            logger.error(f"논문 수집 중 오류 발생: {str(e)}")
             return [] 
