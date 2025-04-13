@@ -12,8 +12,8 @@ class EmailSender:
         
         self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', 587))
-        self.sender_email = os.getenv('SENDER_EMAIL')
-        self.sender_password = os.getenv('SENDER_PASSWORD')
+        self.sender_email = os.getenv('SMTP_USERNAME')
+        self.sender_password = os.getenv('SMTP_PASSWORD')
         self.subject_prefix = os.getenv('EMAIL_SUBJECT_PREFIX', '[DailyAI Scholar] ')
         
         # Load recipient list

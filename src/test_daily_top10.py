@@ -14,10 +14,6 @@ from services.email_sender import EmailSender
 import requests
 import hashlib
 import pickle
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Set timezone to KST
 KST = pytz.timezone('Asia/Seoul')
@@ -80,7 +76,7 @@ def get_specific_date_papers(target_date: str) -> List[Dict]:
         
         # 날짜 범위 계산
         target_start = datetime.datetime.strptime(target_date, '%Y-%m-%d').replace(tzinfo=pytz.UTC)
-        search_start = target_start - datetime.timedelta(days=3)  # 3일 전부터 검색
+        search_start = target_start - datetime.timedelta(days=1)  # 3일 전부터 검색
         search_end = target_start + datetime.timedelta(days=1)  # 다음 날까지
         
         print(f"검색 기간: {search_start.strftime('%Y-%m-%d')} ~ {search_end.strftime('%Y-%m-%d')}")
@@ -171,7 +167,7 @@ def save_top10(papers: List[Dict], analyzer: PaperQualityAnalyzer):
     paper_scores.sort(key=lambda x: x['score'], reverse=True)
     
     # 상위 10개만 선택
-    top10 = paper_scores[:10]
+    top10 = paper_scores[:1]
     
     # 순위 추가
     for i, paper in enumerate(top10, 1):
@@ -286,21 +282,10 @@ def run_daily_top10():
         print(f"오류 상세 정보: {str(e)}")
 
 def main():
-    # 스케줄러 설정
-    schedule.every().day.at("03:00").do(run_daily_top10)
-    print("Daily Scholar AI가 시작되었습니다.")
-    print("다음 실행 시간: 매일 오전 3시 (KST)")
-    
-    while True:
-        try:
-            schedule.run_pending()
-            time.sleep(60)  # 1분마다 체크
-        except KeyboardInterrupt:
-            print("\nDaily Scholar AI가 종료되었습니다.")
-            break
-        except Exception as e:
-            print(f"오류 발생: {e}")
-            time.sleep(60)  # 오류 발생시 1분 후 재시도
+    # 직접 실행
+    print("Daily Scholar AI 테스트 실행을 시작합니다.")
+    run_daily_top10()
+    print("Daily Scholar AI 테스트 실행이 완료되었습니다.")
 
 if __name__ == "__main__":
     main()  
